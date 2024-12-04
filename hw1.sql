@@ -20,7 +20,7 @@ where Color IS NOT NULL;
 -- 5.Write a query that retrieves the columns ProductID, Name, Color and ListPrice from the Production.Product table, the rows that are not NULL for the column Color, and the column ListPrice has a value greater than zero.
 select ProductID, Name, Color, ListPrice
 from Production.Product
-where Color is NULL and ListPrice > 0;
+where Color is not NULL and ListPrice > 0;
 
 -- 6.Write a query that concatenates the columns Name and Color from the Production.Product table by excluding the rows that are null for color.
 select Name + '-' + Color as NameColor
