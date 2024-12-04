@@ -1,22 +1,26 @@
 Use Northwind
 GO
 -- 1.      List all cities that have both Employees and Customers.
-select e.City 
+select distinct e.City 
 from Employees e join Customers c on c.City = e.City;
 
 -- 2.      List all cities that have Customers but no Employee.
     -- a.      Use sub-query
-select City 
+select distinct City 
 from Customers
 where City not in (
     select distinct City
     from Employees
+    where city is not null
 )
 
     -- b.      Do not use sub-query
-select c.City
-from Customers c left join Employees e on c.city = e.City
-where e.EmployeeID is null
+-- select c.City
+-- from Customers c left join Employees e on c.city = e.City
+-- where e.EmployeeID is null
+select distinct city from Customers  
+except 
+select distinct city from Employees
 
 -- 3.      List all products and their total order quantities throughout all orders.
 select p.ProductName, Sum(od.Quantity) as TotalOrderQuantities
@@ -49,15 +53,15 @@ from Customers c join Orders o on o.CustomerID = c.CustomerID
 where o.ShipCity <> c.City
 
 -- 8.      List 5 most popular products, their average price, and the customer city that ordered most quantity of it.
-With ProductPopularityCTE
-AS(
-    select p.ProductID, p.ProductName, c.City, Avg(od.UnitPrice) as AvgPrice, RANK() OVER(ORDER BY Sum(od.Quantity) DESC) PopRNK
-    from Products p join [Order Details] od on od.ProductID = p.ProductID join Orders o on o.OrderID = od.OrderID join Customers c on c.CustomerID = o.CustomerID
-    group by p.ProductID, p.ProductName, c.City
-)
-select pp.ProductName, pp.AvgPrice, pp.City
-from ProductPopularityCTE pp
-where pp.PopRNK <= 5
+-- With ProductPopularityCTE
+-- AS(
+--     select p.ProductID, p.ProductName, c.City, Avg(od.UnitPrice) as AvgPrice, RANK() OVER(ORDER BY Sum(od.Quantity) DESC) PopRNK
+--     from Products p join [Order Details] od on od.ProductID = p.ProductID join Orders o on o.OrderID = od.OrderID join Customers c on c.CustomerID = o.CustomerID
+--     group by p.ProductID, p.ProductName, c.City
+-- )
+-- select pp.ProductName, pp.AvgPrice, pp.City
+-- from ProductPopularityCTE pp
+-- where pp.PopRNK <= 5
 
 -- Alternatively
 -- With ProductPopularityCTE
@@ -70,6 +74,11 @@ where pp.PopRNK <= 5
 -- from ProductPopularityCTE pp
 -- order by pp.Popularity desc
 
+select top 5 ProductID,AVG(UnitPrice) as AvgPrice,(select top 1 City from Customers c join Orders o on o.CustomerID=c.CustomerID join [Order Details] od2 on od2.OrderID=o.OrderID where od2.ProductID=od1.ProductID group by city order by SUM(Quantity) desc) as City from [Order Details] od1
+group by ProductID 
+order by sum(Quantity) desc
+
+
 -- 9.      List all cities that have never ordered something but we have employees there.
     -- a.      Use sub-query
 select distinct e.City
@@ -77,12 +86,22 @@ from Employees e
 where e.City not in (
     select distinct o.ShipCity
     from Orders o 
+    where o.ShipCity is not null
 )
 
     -- b.      Do not use sub-query
 select distinct e.City
 from Employees e left join Orders o on e.City = o.ShipCity
 where o.OrderID is null 
+
+select distinct City 
+from Employees 
+where City is not null 
+except 
+    (select ShipCity 
+    from Orders 
+    where ShipCity is not null)
+
     
 -- 10.  List one city, if exists, that is the city from where the employee sold most orders (not the product quantity) is, and also the city of most total quantity of products ordered from. (tip: join  sub-query)
 -- WITH EmployeeSales AS (
@@ -107,30 +126,42 @@ where o.OrderID is null
 -- ON es.City = co.City
 -- ORDER BY co.TotalProducts DESC, es.TotalOrders DESC
 
+-- select MostOrder.City
+-- from (
+--     select e.City, RANK() OVER(ORDER BY Count(o.OrderID) DESC) RNK 
+--     from Employees e join Orders o on e.EmployeeID = o.EmployeeID
+--     group by e.City) MostOrder
+-- join 
+-- (
+--     select o.ShipCity, RANK() OVER(ORDER BY Sum(od.quantity) DESC) RNK 
+--     from Orders o join [Order Details] od on o.OrderID = od.OrderID
+--     group by o.ShipCity
+-- ) MostProductQuantity on MostOrder.City = MostProductQuantity.ShipCity
+-- where MostOrder.RNK = 1 and MostProductQuantity.RNK = 1
 
-select MostOrder.City
-from (
-    select e.City, RANK() OVER(ORDER BY Count(o.OrderID) DESC) RNK 
-    from Employees e join Orders o on e.EmployeeID = o.EmployeeID
-    group by e.City) MostOrder
-join 
-(
-    select o.ShipCity, RANK() OVER(ORDER BY Sum(od.quantity) DESC) RNK 
-    from Orders o join [Order Details] od on o.OrderID = od.OrderID
-    group by o.ShipCity
-) MostProductQuantity on MostOrder.City = MostProductQuantity.ShipCity
-where MostOrder.RNK = 1 and MostProductQuantity.RNK = 1
+select (select top 1 City from Orders o join [Order Details] od on o.OrderID=od.OrderID join Employees e on e.EmployeeID = o.EmployeeID
+group by e.EmployeeID,e.City
+order by COUNT(*) desc) as MostOrderedCity,
+(select top 1 City from Orders o join [Order Details] od on o.OrderID=od.OrderID join Employees e on e.EmployeeID = o.EmployeeID
+group by e.EmployeeID,e.City
+order by sum(Quantity) desc) as MostQunatitySoldCity
+
+
 
 
 -- 11. How do you remove the duplicates record of a table?
-WITH CTE AS (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY Column1, Column2 ORDER BY ID) AS RowNum
-    FROM Table
-)
-DELETE FROM CTE
-WHERE RowNum > 1;
 
--- OR 
-select distinct *
-into TABLE
-FROM Table
+-- use group by and count(*), if count(*)>1 then delete the rows using sub query
+
+
+-- WITH CTE AS (
+--     SELECT *, ROW_NUMBER() OVER (PARTITION BY Column1, Column2 ORDER BY ID) AS RowNum
+--     FROM Table
+-- )
+-- DELETE FROM CTE
+-- WHERE RowNum > 1;
+
+-- -- OR 
+-- select distinct *
+-- into TABLE
+-- FROM Table
