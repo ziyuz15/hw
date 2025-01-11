@@ -1,0 +1,6 @@
+mvc user I/O
+Core abstract layer (interface services and repositories)
+Infrastructure (Implementation of the interfaces + EntityFramework data rep classes) 
+
+dependency Injection: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection
+
